@@ -3,13 +3,13 @@
 #include <iostream>
 #include <omp.h>
 
-#define NUM_T 20
-
 int main()
 {
+    const int NUM_T = omp_get_max_threads();
+
     #pragma omp parallel num_threads(NUM_T)
     {
-        std::cout << "Hello from thread " << omp_get_thread_num() << "\n";
+        std::cout << "[Thread " << omp_get_thread_num() << "/" << NUM_T << "] Hello OpenMP!\n";
     }
 
     return 0;
