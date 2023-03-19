@@ -13,7 +13,7 @@
 /************************************************************************/
 /* Constructor & Destructor                                             */
 /************************************************************************/
-DS_timer::DS_timer(int _numTimer /* =0 */, int _numCount /* =0 */, bool _trunOn /* =true */){
+DS_timer::DS_timer(int _numTimer /* =0 */, [[maybe_unused]] int _numCount /* =0 */, bool _trunOn /* =true */){
 
 	turnOn = _trunOn ;
 	start_ticks = NULL ; end_ticks = NULL ; totalTicks = NULL ;
