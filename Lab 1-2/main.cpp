@@ -1,3 +1,5 @@
+// https://koreatechackr-my.sharepoint.com/:b:/g/personal/bluekds_koreatech_ac_kr/ET9soRnxGoZPrU37K7yhmDYBUEVGlPIZxuAmGOl4X6ZWcw?e=2qkFop
+
 #include <omp.h>
 #include "common.h"
 #include "../DSTimer/DS_timer.h"
