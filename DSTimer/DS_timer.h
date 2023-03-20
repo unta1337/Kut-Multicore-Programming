@@ -34,7 +34,7 @@ private :
 
 	// For timers
 	bool*			timerStates ;
-	TIME_VAL	ticksPerSecond;
+	[[maybe_unused]] TIME_VAL	ticksPerSecond;
 	TIME_VAL	*start_ticks;
 	TIME_VAL	*end_ticks;
 	TIME_VAL	*totalTicks;
