@@ -8,16 +8,11 @@
 
 #define PRI_RES 0
 
-#if PRI_RES
-#define m (5)
-#define n (5)
-#else
 // Set the size of matrix and vector
 // matrix A = m by n
 // vector b = n by 1
 #define m (10000)
 #define n (10000)
-#endif
 
 #define GenFloat (rand() % 100 + ((float)(rand() % 100) / 100.0))
 void genRandomInput();
@@ -86,26 +81,6 @@ int main()
 		printf("Results are matched! :)\n");
 
 	timer.printTimer();
-
-#if PRI_RES
-    printf("[Result]\n");
-    for (size_t i = 0; i < n ; i++) {
-        printf("| ");
-        for (size_t j = 0; j < m + 3 ; j++) {
-            if (j < m) {
-                printf("%3.2f ", A[i][j]);
-            } else if (j == m) {
-                printf("| %3.2f ", X[i]);
-            } else if (j == m + 1) {
-                printf("| %3.2f ", Y_serial[i]);
-            } else {
-                printf("| %3.2f ", Y_parallel[i]);
-            }
-        }
-        printf("|\n");
-    }
-    printf("[Result End]\n");
-#endif
 
 	EXIT_WIHT_KEYPRESS;
 }
