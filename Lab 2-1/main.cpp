@@ -6,8 +6,6 @@
 #include "DS_timer.h"
 #include "DS_definitions.h"
 
-#define PRI_RES 0
-
 // Set the size of matrix and vector
 // matrix A = m by n
 // vector b = n by 1
@@ -50,13 +48,10 @@ int main()
 	//** Write your code implementing the parallel algorithm here
     const int num_t = omp_get_max_threads();
 
-    #pragma omp parallel num_threads(num_t)
-    {
-        int t_num = omp_get_thread_num();
-        for (size_t i = t_num; i < m ; i += num_t) {
-            for (size_t j = 0; j < n; j++) {
-                Y_parallel[i] += A[i][j] * X[j];
-            }
+    #pragma omp parallel for num_threads(num_t)
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            Y_parallel[i] += A[i][j] * X[j];
         }
     }
 
