@@ -13,12 +13,6 @@ const double ERR = 0.0001;
 
 int main(int argc, char* argv[])
 {
-    argc = 4;
-    argv[1] = (char*)"0";
-    argv[2] = (char*)"1024";
-    // argv[3] = (char*)"1073741824";
-    argv[3] = (char*)"10000000";
-
 	DS_timer timer(2);
 	timer.setTimerName(0, (char*)"Serial");
 	timer.setTimerName(1, (char*)"Parallel");
@@ -46,34 +40,37 @@ int main(int argc, char* argv[])
     double Y_parallel = 0.0;
 
     timer.onTimer(0);
+
     for (int i = 0; i < steps; i++)
     {
         double x = begin + i * step;
         Y_serial += step * (F(x) + F(x + step)) / 2;
     }
+
     timer.offTimer(0);
 
     timer.onTimer(1);
-    // for (int i = 0; i < steps; i++)
-    // {
-    //     double x = begin + i * step;
-    //     Y_parallel += step * (F(x) + F(x + step)) / 2;
-    // }
 
     const int num_t = omp_get_max_threads();
     double results[num_t];
 
     memset(results, 0, sizeof(results));
 
-    #pragma omp parallel for num_threads(num_t)
-    for (int i = 0; i < steps; i++)
+    #pragma omp parallel num_threads(num_t)
     {
-        double x = begin + i * step;
-        results[omp_get_thread_num()] += step * (F(x) + F(x + step)) / 2;
+        int t_num = omp_get_thread_num();
+
+        #pragma omp for
+        for (int i = 0; i < steps; i++)
+        {
+            double x = begin + i * step;
+            results[t_num] += step * (F(x) + F(x + step)) / 2;
+        }
     }
 
     for (int i = 0; i < num_t; i++)
         Y_parallel += results[i];
+
     timer.offTimer(1);
 
     printf("[Definite integral of given function]\n");
