@@ -7,6 +7,8 @@
 #include "DS_timer.h"
 #include "DS_definitions.h"
 
+#define FROM_CLI 1
+
 #define F(x) ((x) * (x))
 
 const double ERR = 0.0001;
@@ -16,6 +18,13 @@ int main(int argc, char* argv[])
 	DS_timer timer(2);
 	timer.setTimerName(0, (char*)"Serial");
 	timer.setTimerName(1, (char*)"Parallel");
+
+#if not FROM_CLI
+    argc = 4;
+    argv[1] = (char*)"0";
+    argv[2] = (char*)"1024";
+    argv[3] = (char*)"1073741824";
+#endif
 
 	if (argc < 4) {
 		printf("It requires three arguments\n");
