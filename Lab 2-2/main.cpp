@@ -95,5 +95,5 @@ int main(int argc, char* argv[])
 
     timer.printTimer();
 
-    return 0;
+    EXIT_WIHT_KEYPRESS;
 }
