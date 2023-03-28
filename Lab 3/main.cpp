@@ -7,8 +7,8 @@
 
 #define INIT_PARALLEL 1
 
-#define NUM_T 20
-#define NUM_SAMPLES (1024 * 1024)
+#define NUM_T 8
+#define NUM_SAMPLES (1024 * 1024 * 10)
 // #define NUM_SAMPLES (1024 * 1024 * 1024)
 #define RAND_FLOAT (rand() % 10000 / 1000.0f)
 
@@ -112,6 +112,38 @@ int main(void) {
 
     // 5.  Parallel with Divide and Conqure Gathering.
     timer.onTimer(5);
+
+    std::vector<std::vector<int>> p_dnc_local_bins(NUM_T, std::vector<int>(10, 0));
+    std::vector<std::vector<int>> p_dnc_temp_bins(NUM_T, std::vector<int>(10, 0));
+
+    #pragma omp parallel num_threads(NUM_T)
+    {
+        int t_num = omp_get_thread_num();
+
+        #pragma omp for
+        for (size_t i = 0; i < NUM_SAMPLES; i++)
+            p_dnc_local_bins[t_num][static_cast<int>(inputs[i])]++;
+
+        if (t_num % 2 == 0)
+            for (int i = 0; i < 10; i++)
+                p_dnc_temp_bins[t_num][i] = p_dnc_local_bins[t_num][i] +
+                (t_num + 1 < NUM_T ? p_dnc_local_bins[t_num + 1][i] : 0);
+
+        #pragma omp barrier
+
+        if (t_num % 4 == 0)
+            for (int i = 0; i < 10; i++)
+                p_dnc_temp_bins[t_num][i] = p_dnc_temp_bins[t_num][i] +
+                (t_num + 2 < NUM_T ? p_dnc_temp_bins[t_num + 2][i] : 0);
+
+        #pragma omp barrier
+
+        if (t_num % 8 == 0)
+            for (int i = 0; i < 10; i++)
+                p_dnc_bins[i] = p_dnc_temp_bins[t_num][i] +
+                (t_num + 4 < NUM_T ? p_dnc_temp_bins[t_num + 4][i] : 0);
+    }
+
     timer.offTimer(5);
 
     // Result.
