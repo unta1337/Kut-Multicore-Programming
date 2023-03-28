@@ -1,7 +1,5 @@
-#include <iostream>
-#include <vector>
-#include <ctime>
-#include <numeric>
+#include <stdio.h>
+#include <string.h>
 #include <omp.h>
 #include "DS_timer.h"
 #include "DS_definitions.h"
@@ -12,20 +10,22 @@
 #define NUM_SAMPLES (1024 * 1024 * 1024)
 #define RAND_FLOAT (rand() % 10000 / 1000.0f)
 
-std::vector<float> inputs(NUM_SAMPLES);
-std::vector<int> serial_bins(10, 0);
-std::vector<int> p_lock_bins(10, 0);
-std::vector<int> p_local_lock_bins(10, 0);
-std::vector<int> p_linear_bins(10, 0);
-std::vector<int>* p_dnc_bins;
+float* inputs;
+int serial_bins[10];
+int p_lock_bins[10];
+int p_local_lock_bins[10];
+int p_linear_bins[10];
+int* p_dnc_bins;
 
 omp_lock_t g_lock;
 
 void init_random_float();
-bool is_correct(std::vector<int>& vec);
+bool is_correct(int* arr);
 
 int main(void) {
     srand((unsigned int)time(NULL));
+
+    inputs = (float*)malloc(NUM_SAMPLES * sizeof(float));
 
     DS_timer timer(6);
     timer.setTimerName(0, (char*)"Init                                                 ");
@@ -45,8 +45,8 @@ int main(void) {
     // 1. Serial.
     timer.onTimer(1);
 
-    for (float f : inputs)
-        serial_bins[static_cast<int>(f)]++;
+    for (size_t i = 0; i < NUM_SAMPLES; i++)
+        serial_bins[(int)inputs[i]]++;
 
     timer.offTimer(1);
 
@@ -59,7 +59,7 @@ int main(void) {
     for (size_t i = 0; i < NUM_SAMPLES; i++)
     {
         omp_set_lock(&g_lock);
-        p_lock_bins[static_cast<int>(inputs[i])]++;
+        p_lock_bins[(int)inputs[i]]++;
         omp_unset_lock(&g_lock);
     }
 
@@ -70,7 +70,9 @@ int main(void) {
 
     omp_init_lock(&g_lock);
 
-    std::vector<std::vector<int>> p_local_lock_local_bins(NUM_T, std::vector<int>(10, 0));
+    int p_local_lock_local_bins[NUM_T][10];
+
+    memset(p_local_lock_local_bins, 0, sizeof(p_local_lock_local_bins));
 
     #pragma omp parallel num_threads(NUM_T)
     {
@@ -78,7 +80,7 @@ int main(void) {
 
         #pragma omp for
         for (size_t i = 0; i < NUM_SAMPLES; i++)
-            p_local_lock_local_bins[t_num][static_cast<int>(inputs[i])]++;
+            p_local_lock_local_bins[t_num][(int)inputs[i]]++;
 
         #pragma omp for
         for (int i = 0; i < NUM_T; i++) {
@@ -95,7 +97,9 @@ int main(void) {
     // 4. Parallel with Linear Gathering.
     timer.onTimer(4);
 
-    std::vector<std::vector<int>> p_linear_local_bins(NUM_T, std::vector<int>(10, 0));
+    int p_linear_local_bins[NUM_T][10];
+
+    memset(p_linear_local_bins, 0, sizeof(p_linear_local_bins));
 
     #pragma omp parallel num_threads(NUM_T)
     {
@@ -103,7 +107,7 @@ int main(void) {
 
         #pragma omp for
         for (size_t i = 0; i < NUM_SAMPLES; i++)
-            p_linear_local_bins[t_num][static_cast<int>(inputs[i])]++;
+            p_linear_local_bins[t_num][(int)inputs[i]]++;
     }
     for (auto& local_bin : p_linear_local_bins)
         for (int i = 0; i < 10; i++)
@@ -114,7 +118,9 @@ int main(void) {
     // 5.  Parallel with Divide and Conqure Gathering.
     timer.onTimer(5);
 
-    std::vector<std::vector<int>> p_dnc_local_bins(NUM_T, std::vector<int>(10, 0));
+    int p_dnc_local_bins[NUM_T][10];
+
+    memset(p_dnc_local_bins, 0, sizeof(p_dnc_local_bins));
 
     #pragma omp parallel num_threads(NUM_T)
     {
@@ -122,7 +128,7 @@ int main(void) {
 
         #pragma omp for
         for (size_t i = 0; i < NUM_SAMPLES; i++)
-            p_dnc_local_bins[t_num][static_cast<int>(inputs[i])]++;
+            p_dnc_local_bins[t_num][(int)inputs[i]]++;
 
         for (int u = 1; u < NUM_T; u *= 2) {
             for (int i = 0; i < 10; i++) {
@@ -135,35 +141,35 @@ int main(void) {
         }
     }
 
-    p_dnc_bins = &p_dnc_local_bins[0];
+    p_dnc_bins = (int*)&p_dnc_local_bins[0];
 
     timer.offTimer(5);
 
     // Result.
-    std::cout << "1. Serial:                                     ";
+    printf("1. Serial:                                     ");
     for (int i = 0; i < 10; i++)
-        std::cout << i << ": " << serial_bins[i] << " | ";
-    std::cout << "is correct: " << is_correct(serial_bins) << "\n";
+        printf("%d: %d | ", i, serial_bins[i]);
+    printf("is correct: %d\n", is_correct(serial_bins));
 
-    std::cout << "2. Parallel with Lock:                         ";
+    printf("2. Parallel with Lock:                         ");
     for (int i = 0; i < 10; i++)
-        std::cout << i << ": " << p_lock_bins[i] << " | ";
-    std::cout << "is correct: " << is_correct(p_lock_bins) << "\n";
+        printf("%d: %d | ", i, p_lock_bins[i]);
+    printf("is correct: %d\n", is_correct(p_lock_bins));
 
-    std::cout << "3. Parallel with Local bins and Lock:          ";
+    printf("3. Parallel with Local bins and Lock:          ");
     for (int i = 0; i < 10; i++)
-        std::cout << i << ": " << p_local_lock_bins[i] << " | ";
-    std::cout << "is correct: " << is_correct(p_local_lock_bins) << "\n";
+        printf("%d: %d | ", i, p_local_lock_bins[i]);
+    printf("is correct: %d\n", is_correct(p_local_lock_bins));
 
-    std::cout << "4. Parallel with Linear Gathering:             ";
+    printf("4. Parallel with Linear Gathering:             ");
     for (int i = 0; i < 10; i++)
-        std::cout << i << ": " << p_linear_bins[i] << " | ";
-    std::cout << "is correct: " << is_correct(p_linear_bins) << "\n";
+        printf("%d: %d | ", i, p_linear_bins[i]);
+    printf("is correct: %d\n", is_correct(p_linear_bins));
 
-    std::cout << "5. Parallel with Divide and Conqure Gathering: ";
+    printf("5. Parallel with Divide and Conqure Gathering: ");
     for (int i = 0; i < 10; i++)
-        std::cout << i << ": " << (*p_dnc_bins)[i] << " | ";
-    std::cout << "is correct: " << is_correct((*p_dnc_bins)) << "\n";
+        printf("%d: %d | ", i, p_dnc_bins[i]);
+    printf("is correct: %d\n", is_correct(p_dnc_bins));
 
     timer.printTimer();
 
@@ -178,6 +184,10 @@ void init_random_float() {
         inputs[i] = RAND_FLOAT;
 }
 
-bool is_correct(std::vector<int>& vec) {
-    return std::accumulate(vec.begin(), vec.end(), true, [&, idx = 0](bool& acc, int e) mutable { return acc &= e == serial_bins[idx++]; });
+bool is_correct(int* arr) {
+    for (int i = 0; i < 10; i++)
+        if (arr[i] != serial_bins[i])
+            return false;
+
+    return true;
 }
