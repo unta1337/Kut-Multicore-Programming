@@ -1,15 +1,15 @@
 #include <iostream>
 #include <vector>
 #include <ctime>
+#include <numeric>
 #include <omp.h>
 #include "DS_timer.h"
 #include "DS_definitions.h"
 
 #define INIT_PARALLEL 1
 
-#define NUM_T 8
-#define NUM_SAMPLES (1024 * 1024 * 10)
-// #define NUM_SAMPLES (1024 * 1024 * 1024)
+#define NUM_T 20
+#define NUM_SAMPLES (1024 * 1024 * 1024)
 #define RAND_FLOAT (rand() % 10000 / 1000.0f)
 
 std::vector<float> inputs(NUM_SAMPLES);
@@ -17,11 +17,12 @@ std::vector<int> serial_bins(10, 0);
 std::vector<int> p_lock_bins(10, 0);
 std::vector<int> p_local_lock_bins(10, 0);
 std::vector<int> p_linear_bins(10, 0);
-std::vector<int> p_dnc_bins(10, 0);
+std::vector<int>* p_dnc_bins;
 
 omp_lock_t g_lock;
 
 void init_random_float();
+bool is_correct(std::vector<int>& vec);
 
 int main(void) {
     srand((unsigned int)time(NULL));
@@ -124,53 +125,46 @@ int main(void) {
         for (size_t i = 0; i < NUM_SAMPLES; i++)
             p_dnc_local_bins[t_num][static_cast<int>(inputs[i])]++;
 
-        if (t_num % 2 == 0)
-            for (int i = 0; i < 10; i++)
-                p_dnc_temp_bins[t_num][i] = p_dnc_local_bins[t_num][i] +
-                (t_num + 1 < NUM_T ? p_dnc_local_bins[t_num + 1][i] : 0);
+        for (int u = 1; u < NUM_T; u *= 2) {
+            for (int i = 0; i < 10; i++) {
+                if (t_num % (2 * u) == 0) {
+                    p_dnc_local_bins[t_num][i] += t_num + u < NUM_T ? p_dnc_local_bins[t_num + u][i] : 0;
+                }
+            }
 
-        #pragma omp barrier
-
-        if (t_num % 4 == 0)
-            for (int i = 0; i < 10; i++)
-                p_dnc_temp_bins[t_num][i] = p_dnc_temp_bins[t_num][i] +
-                (t_num + 2 < NUM_T ? p_dnc_temp_bins[t_num + 2][i] : 0);
-
-        #pragma omp barrier
-
-        if (t_num % 8 == 0)
-            for (int i = 0; i < 10; i++)
-                p_dnc_bins[i] = p_dnc_temp_bins[t_num][i] +
-                (t_num + 4 < NUM_T ? p_dnc_temp_bins[t_num + 4][i] : 0);
+            #pragma omp barrier
+        }
     }
+
+    p_dnc_bins = &p_dnc_local_bins[0];
 
     timer.offTimer(5);
 
     // Result.
-    std::cout << "1. Serial:                                      ";
+    std::cout << "1. Serial:                                     ";
     for (int i = 0; i < 10; i++)
         std::cout << i << ": " << serial_bins[i] << " | ";
-    std::cout << "\n";
+    std::cout << "is correct: " << is_correct(serial_bins) << "\n";
 
-    std::cout << "2. Parallel with Lock:                          ";
+    std::cout << "2. Parallel with Lock:                         ";
     for (int i = 0; i < 10; i++)
         std::cout << i << ": " << p_lock_bins[i] << " | ";
-    std::cout << "\n";
+    std::cout << "is correct: " << is_correct(p_lock_bins) << "\n";
 
-    std::cout << "3. Parallel with Local bins and Lock:           ";
+    std::cout << "3. Parallel with Local bins and Lock:          ";
     for (int i = 0; i < 10; i++)
         std::cout << i << ": " << p_local_lock_bins[i] << " | ";
-    std::cout << "\n";
+    std::cout << "is correct: " << is_correct(p_local_lock_bins) << "\n";
 
-    std::cout << "4. Parallel with Linear Gathering:              ";
+    std::cout << "4. Parallel with Linear Gathering:             ";
     for (int i = 0; i < 10; i++)
         std::cout << i << ": " << p_linear_bins[i] << " | ";
-    std::cout << "\n";
+    std::cout << "is correct: " << is_correct(p_linear_bins) << "\n";
 
-    std::cout << "5. Parallel with Divide and Conqure Gatheriung: ";
+    std::cout << "5. Parallel with Divide and Conqure Gathering: ";
     for (int i = 0; i < 10; i++)
-        std::cout << i << ": " << p_dnc_bins[i] << " | ";
-    std::cout << "\n";
+        std::cout << i << ": " << (*p_dnc_bins)[i] << " | ";
+    std::cout << "is correct: " << is_correct((*p_dnc_bins)) << "\n";
 
     timer.printTimer();
 
@@ -183,4 +177,8 @@ void init_random_float() {
 #endif
     for (size_t i = 0; i < NUM_SAMPLES; i++)
         inputs[i] = RAND_FLOAT;
+}
+
+bool is_correct(std::vector<int>& vec) {
+    return std::accumulate(vec.begin(), vec.end(), true, [&, idx = 0](bool& acc, int e) mutable { return acc &= e == serial_bins[idx++]; });
 }
