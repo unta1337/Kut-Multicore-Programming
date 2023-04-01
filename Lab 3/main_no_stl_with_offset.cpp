@@ -1,3 +1,5 @@
+// https://koreatechackr-my.sharepoint.com/:b:/g/personal/bluekds_koreatech_ac_kr/EaTLhBq9I3VGnd9ATGzOA3gB4BQUgKZXBj1fNmrWQhopKQ?e=fFWFFF
+
 #include <stdio.h>
 #include <string.h>
 #include <omp.h>
