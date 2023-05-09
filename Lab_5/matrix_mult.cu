@@ -1,8 +1,17 @@
+// https://koreatechackr-my.sharepoint.com/:b:/g/personal/bluekds_koreatech_ac_kr/EWq2qFt0rJtBjFaYymZ81FEBOpVF_Z9YPmNBHuyn-ol4WA?e=106gGk
+// Ref: [선형 인덱스 <-> 다차원 인덱스 변환](https://blog.naver.com/ipsy2003/221853617999)
+
 #include <iostream>
 #include <random>
 #include <cstdlib>
 
 #include "DS_timer.h"
+
+const float epsilon = 1e-3;
+
+bool is_equivalent(float a, float b) {
+    return abs(a - b) < epsilon;
+}
 
 enum TIMER_NAMES {
     CPU_SERIAL,
@@ -15,6 +24,20 @@ enum TIMER_NAMES {
 };
 
 __global__ void cuda_matrix_mult(float* A, float* B, float* C, int N, int M, int L) {
+    // C에서의 선형 인덱스.
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // 범위 검사.
+    if (index >= N * L)
+        return;
+
+    // C에서의 이차원 인덱스.
+    size_t i = index / L;
+    size_t j = index % L;
+
+    // C에서의 각 요소에 대응하는 A, B의 요소 처리.
+    for (size_t k = 0; k < M; k++)
+        C[index] += A[i * M + k] + B[k * L + j];
 }
 
 int main() {
@@ -32,9 +55,9 @@ int main() {
     timer.setTimerName(GPU_COMPUTAION    , (char*)"GPU: Computation   ");
     timer.setTimerName(GPU_DEVICE_TO_HOST, (char*)"GPU: Device -> Host");
 
-    const int N = 1024;
-    const int M = 512;
-    const int L = 2048;
+    const int N = 512;
+    const int M = 2048;
+    const int L = 1024;
 
     float* A = new float[N * M];
     float* B = new float[M * L];
@@ -95,12 +118,18 @@ int main() {
     timer.offTimer(GPU_HOST_TO_DEVICE);
 
     timer.onTimer(GPU_COMPUTAION);
-    cuda_matrix_mult<<<1, 1>>>(A_gpu, B_gpu, temp_gpu, N, M, L);
+    size_t total_size = N * L;
+    size_t unit_size = 256;
+
+    dim3 grid_dim(ceil((float)total_size / unit_size));
+    dim3 block_dim(unit_size);
+
+    cuda_matrix_mult<<<grid_dim, block_dim>>>(A_gpu, B_gpu, temp_gpu, N, M, L);
     cudaDeviceSynchronize();
     timer.offTimer(GPU_COMPUTAION);
 
     timer.onTimer(GPU_DEVICE_TO_HOST);
-    cudaMemcpy(C_gpu, temp_gpu, N * L * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(C_gpu, temp_gpu, N * L * sizeof(float), cudaMemcpyDeviceToHost);
     timer.offTimer(GPU_DEVICE_TO_HOST);
 
     timer.offTimer(GPU);
@@ -111,7 +140,7 @@ int main() {
 
     for (int i = 0; i < N; i++)
         for (int j = 0; j < L; j++)
-            if (C[i * L + j] != C_parallel[i * L + j]) {
+            if (!is_equivalent(C[i * L + j], C_parallel[i * L + j])) {
                 is_correct_parallel = false;
                 goto loop_parallel;
             }
@@ -119,12 +148,13 @@ int main() {
 
     for (int i = 0; i < N; i++)
         for (int j = 0; j < L; j++)
-            if (C[i * L + j] != C_gpu[i * L + j]) {
+            if (!is_equivalent(C[i * L + j], C_gpu[i * L + j])) {
                 is_correct_gpu = false;
                 goto loop_gpu;
             }
     loop_gpu:
 
+    std::cout << "Epsilon:  " << epsilon << "\n";
     std::cout << "Parallel: " << (is_correct_parallel ? "Succeeded" : "Failed") << "\n";
     std::cout << "GPU:      " << (is_correct_gpu      ? "Succeeded" : "Failed") << "\n";
 
