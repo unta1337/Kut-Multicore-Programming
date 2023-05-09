@@ -1,3 +1,5 @@
+// https://koreatechackr-my.sharepoint.com/:b:/g/personal/bluekds_koreatech_ac_kr/EdbpTtPwDpxPg9pZ7axFsH8BXqPY3_Z-G4uXIjdjo-RoUw?e=8PPMOW
+
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
