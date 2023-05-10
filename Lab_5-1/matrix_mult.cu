@@ -37,7 +37,7 @@ __global__ void cuda_matrix_mult(float* A, float* B, float* C, int N, int M, int
 
     // C에서의 각 요소에 대응하는 A, B의 요소 처리.
     for (size_t k = 0; k < M; k++)
-        C[index] += A[i * M + k] + B[k * L + j];
+        C[index] += A[i * M + k] * B[k * L + j];
 }
 
 int main() {
@@ -79,7 +79,7 @@ int main() {
     for (int i = 0; i < N; i++)
         for (int j = 0; j < L; j++)
             for (int k = 0; k < M; k++)
-                C[i * L + j] += A[i * M + k] + B[k * L + j];
+                C[i * L + j] += A[i * M + k] * B[k * L + j];
 
     timer.offTimer(CPU_SERIAL);
 
@@ -95,7 +95,7 @@ int main() {
         for (int j = 0; j < L; j++)
             for (int k = 0; k < M; k++) {
                 #pragma omp atomic
-                C_parallel[i * L + j] += A[i * M + k] + B[k * L + j];
+                C_parallel[i * L + j] += A[i * M + k] * B[k * L + j];
             }
 
     timer.offTimer(CPU_PARALLEL);
